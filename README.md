@@ -38,3 +38,23 @@ config/
 4. Experiment Tracking
 5. Model Registry
 6. Automation Pipeline
+
+## Data Ingestion
+
+Run the ingestion script:
+
+```bash
+python src/ingest_data.py
+```
+
+## Data Preprocessing
+
+Run preprocessing:
+
+```bash
+python src/preprocess.py
+```
+
+## Output
+- Raw data stored in `data/raw/`
+- Processed data stored in `data/processed/`
