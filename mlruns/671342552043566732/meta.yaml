@@ -1,0 +1,8 @@
+artifact_location: file:///workspaces/MLOps-AirQualityPrediction/mlruns/671342552043566732
+creation_time: 1778407938738
+experiment_id: '671342552043566732'
+last_update_time: 1778407938738
+lifecycle_stage: active
+name: AirQualityPrediction
+trace_location: null
+workspace: default

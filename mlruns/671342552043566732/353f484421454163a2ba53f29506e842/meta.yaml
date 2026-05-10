@@ -1,0 +1,14 @@
+artifact_uri: file:///workspaces/MLOps-AirQualityPrediction/mlruns/671342552043566732/353f484421454163a2ba53f29506e842/artifacts
+end_time: 1778407948996
+entry_point_name: ''
+experiment_id: '671342552043566732'
+lifecycle_stage: active
+run_id: 353f484421454163a2ba53f29506e842
+run_name: sassy-sow-117
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778407940545
+status: 3
+tags: []
+user_id: codespace
