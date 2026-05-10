@@ -5,6 +5,8 @@ import mlflow.sklearn
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
+mlflow.set_tracking_uri("file:./mlruns")
+
 # Load dataset
 df = pd.read_csv("data/processed/processed_air_quality.csv")
 
