@@ -1,8 +1,7 @@
 pandas
 numpy
+requests
 scikit-learn
 mlflow
 dvc
-requests
-matplotlib
 pytest

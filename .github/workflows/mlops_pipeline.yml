@@ -1,0 +1,43 @@
+name: Air Quality MLOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - feat/initial-eda
+
+  workflow_dispatch:
+
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  mlops-pipeline:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Data Ingestion
+        run: |
+          python src/ingest_data.py
+
+      - name: Run Preprocessing
+        run: |
+          python src/preprocess.py
+
+      - name: Run Training
+        run: |
+          python src/train.py
