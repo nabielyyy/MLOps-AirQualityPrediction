@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-05-10T14:44:17.269000",
+  "run_id": "17844743264c421baf94624d4cff8417",
+  "parameters": {
+    "n_estimators": "1000"
+  },
+  "metrics": {
+    "accuracy": 0.9995670995670995,
+    "f1_score": 0.9995662604405848
+  },
+  "validation": {
+    "passed": true,
+    "results": [
+      {
+        "metric": "accuracy",
+        "status": "PASS",
+        "threshold": 0.85,
+        "actual": 0.9995670995670995,
+        "difference": 0.14956709956709957
+      },
+      {
+        "metric": "f1_score",
+        "status": "PASS",
+        "threshold": 0.8,
+        "actual": 0.9995662604405848,
+        "difference": 0.1995662604405848
+      }
+    ],
+    "failed_metrics": []
+  },
+  "passed": true
+}

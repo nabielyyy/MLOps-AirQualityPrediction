@@ -1,0 +1,5 @@
+/model_registry.yaml
+.venv/
+.vscode/
+__pycache__/
+mlruns/

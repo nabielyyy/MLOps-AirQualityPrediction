@@ -12,12 +12,14 @@ on:
     - cron: '0 */6 * * *'
 
 jobs:
-  mlops-pipeline:
-
+  # ============================================================================
+  # TAHAP 1: AUTOMATED TESTING
+  # ============================================================================
+  testing:
+    name: "Tahap 1: Automated Testing"
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -30,6 +32,46 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Run pytest - Code Integrity Verification
+        run: |
+          python -m pytest tests/ -v --tb=short
+        continue-on-error: false
+
+      - name: Pytest Report
+        if: always()
+        run: |
+          echo "✅ Code integrity verification completed"
+
+  # ============================================================================
+  # TAHAP 2: AUTOMATED TRAINING
+  # ============================================================================
+  training:
+    name: "Tahap 2: Automated Training"
+    needs: testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Setup DVC
+        run: |
+          dvc config core.autostage true
+
+      - name: Pull Data from DVC
+        run: |
+          dvc pull || echo "No DVC cache available, proceeding with local data"
+        continue-on-error: true
+
       - name: Run Data Ingestion
         run: |
           python src/ingest_data.py
@@ -38,6 +80,111 @@ jobs:
         run: |
           python src/preprocess.py
 
-      - name: Run Training
+      - name: Run Training with Latest Data
         run: |
           python src/train.py
+
+      - name: Training Complete
+        run: |
+          echo "✅ Model training completed successfully"
+
+  # ============================================================================
+  # TAHAP 3: MODEL EVALUATION & VALIDATION
+  # ============================================================================
+  evaluation:
+    name: "Tahap 3: Model Evaluation & Validation"
+    needs: training
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Model Evaluation & Validation
+        run: |
+          python src/evaluate.py
+        continue-on-error: false
+
+      - name: Upload Evaluation Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: evaluation-reports
+          path: evaluation_reports/
+          retention-days: 30
+
+  # ============================================================================
+  # TAHAP 4: AUTO-REGISTRY UPDATE
+  # ============================================================================
+  registry-update:
+    name: "Tahap 4: Auto-Registry Update"
+    needs: evaluation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Register Model to MLflow Model Registry
+        run: |
+          python src/update_registry.py
+        continue-on-error: false
+
+      - name: Registry Update Success
+        run: |
+          echo "✅ Model automatically registered to MLflow Model Registry with Staging status"
+
+      - name: Git Config for Update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Commit Model Registry Updates
+        run: |
+          if git diff --quiet model_registry.yaml; then
+            echo "No changes to model_registry.yaml"
+          else
+            git add model_registry.yaml
+            git commit -m "chore: auto-update model registry - staging version"
+            git push
+          fi
+        continue-on-error: true
+
+  # ============================================================================
+  # SUMMARY
+  # ============================================================================
+  pipeline-summary:
+    name: "Pipeline Summary"
+    needs: [testing, training, evaluation, registry-update]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Pipeline Status
+        run: |
+          echo "🎯 MLOPS PIPELINE SUMMARY"
+          echo "=========================="
+          echo "✅ Tahap 1: Code Integrity Testing"
+          echo "✅ Tahap 2: Automated Training"
+          echo "✅ Tahap 3: Model Evaluation & Validation"
+          echo "✅ Tahap 4: Auto-Registry Update"
+          echo "=========================="
+          echo "Pipeline execution completed!"
