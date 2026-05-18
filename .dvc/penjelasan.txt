@@ -1,0 +1,331 @@
+=================================
+LK01 — INISIASI PROYEK MLOPS
+=================================
+
+Fokus:
+Membuat sistem AI production dengan data yang terus berubah.
+
+Menuju ke:
+- Penentuan domain masalah
+- Penentuan machine learning task
+- Continual learning
+- Arsitektur pipeline
+
+Contoh:
+- Domain → Air Quality Prediction
+- Task → Regression
+- Data → Time-series / streaming
+- Retraining → Mingguan / saat data baru masuk
+
+Tanda Sudah Benar:
+- README menjelaskan proyek
+- Ada penjelasan continual learning
+- Ada diagram pipeline
+
+
+=================================
+LK02 — GITHUB & CODESPACES
+=================================
+
+Fokus:
+Menyiapkan environment proyek MLOps.
+
+Menuju ke:
+- Repository GitHub
+- Codespaces
+- Struktur folder industri
+- Branching strategy
+
+Struktur Minimal:
+data/
+src/
+config/
+tests/
+mlruns/
+
+Branch Eksperimen:
+feat/initial-eda
+
+Cek Branch:
+git branch
+
+Tanda Sudah Benar:
+- Repository aktif
+- Bisa buka Codespaces
+- Ada branch eksperimen
+- README.md tersedia
+
+
+=================================
+LK03 — DESAIN ETL
+=================================
+
+Fokus:
+Mendesain alur data otomatis.
+
+Menuju ke:
+- Extract
+- Transform
+- Load
+- Versioning data
+
+Alur:
+API/Data Source
+    ↓
+ingest_data.py
+    ↓
+data/raw
+    ↓
+preprocess.py
+    ↓
+data/processed
+
+Tanda:
+- Ada ingest_data.py
+- Ada preprocess.py
+- Ada folder data/raw
+
+
+=================================
+LK04 — DATA INGESTION
+=================================
+
+Fokus:
+Mengambil data otomatis dan preprocessing.
+
+Menuju ke:
+- Data ingestion
+- Cleaning
+- Penyimpanan data berkala
+
+File Penting:
+src/ingest_data.py
+src/preprocess.py
+
+Contoh Penyimpanan:
+dataset_20260518.csv
+
+Tujuan:
+Agar data lama tidak tertimpa.
+
+Tanda:
+- Script ingestion berjalan
+- Data baru terus bertambah
+- Data tersimpan di data/raw
+
+
+=================================
+LK05 — DVC (DATA VERSIONING)
+=================================
+
+Fokus:
+Melacak perubahan dataset.
+
+Menuju ke:
+- Data versioning
+- Tracking perubahan data
+- Data lineage
+
+Perintah Penting:
+
+Cara cek semua versi
+git log --oneline
+
+Inisialisasi:
+python -m dvc init
+
+Tracking dataset:
+dvc add data/raw
+
+Cek perubahan:
+dvc diff
+
+Cek status:
+dvc status
+
+Tanda DVC Aktif:
+.dvc/
+
+Tanda Dataset Ditrack:
+raw.dvc
+atau
+dataset.csv.dvc
+
+Alur:
+Data baru masuk
+    ↓
+dvc add
+    ↓
+Hash dataset berubah
+    ↓
+Versi data tercatat
+
+
+=================================
+LK06 — MLFLOW EXPERIMENT
+=================================
+
+Fokus:
+Mencatat eksperimen training model.
+
+Menuju ke:
+- Experiment tracking
+- Parameter logging
+- Metric logging
+- Model artifact
+
+File Penting:
+src/train.py
+
+Function Penting:
+mlflow.log_param()
+mlflow.log_metric()
+mlflow.log_model()
+
+Menjalankan Training:
+python src/train.py
+
+Membuka MLflow UI:
+python -m mlflow ui --host 0.0.0.0 --port 5000
+
+Tanda MLflow Aktif:
+mlruns/
+mlflow.db
+
+Di UI Akan Muncul:
+- Experiments
+- Metrics
+- Parameters
+- Artifacts
+
+
+=================================
+LK07 — MODEL REGISTRY
+=================================
+
+Fokus:
+Mengelola versi model.
+
+Menuju ke:
+- Model Registry
+- Versioning model
+- Stage transition
+- Production model
+
+Stage Model:
+None
+   ↓
+Staging
+   ↓
+Production
+
+Folder Penting:
+mlruns/models/
+
+Load Model:
+mlflow.pyfunc.load_model()
+
+Tanda Sudah Benar:
+- Ada Registered Models
+- Ada Version v1/v2
+- Ada perubahan stage
+
+
+=================================
+LK08 — GITHUB ACTIONS AUTOMATION
+=================================
+
+Fokus:
+Automasi pipeline MLOps.
+
+Menuju ke:
+- CI/CD
+- Automated testing
+- Automated training
+- Auto evaluation
+- Auto registry update
+
+Lokasi Workflow:
+.github/workflows/
+
+Contoh File:
+mlops-automation.yaml
+
+Cek Testing:
+pytest
+
+Alur Automation:
+Push GitHub
+    ↓
+GitHub Actions berjalan
+    ↓
+Testing
+    ↓
+Training
+    ↓
+Evaluation
+    ↓
+Register model otomatis
+
+Tanda Sudah Benar:
+- Workflow berjalan otomatis
+- Ada tab Actions di GitHub
+- Training otomatis saat push
+
+
+=================================
+RINGKASAN TANDA PENTING
+=================================
+
+DVC Aktif:
+.dvc/
+
+Dataset Ditrack:
+*.dvc
+
+MLflow Aktif:
+mlruns/
+mlflow.db
+
+Automation Aktif:
+.github/workflows/
+
+Training:
+train.py
+
+Ingestion:
+ingest_data.py
+
+Preprocessing:
+preprocess.py
+
+Testing:
+tests/
+
+Branch Eksperimen:
+feat/initial-eda
+
+
+=================================
+ALUR BESAR MLOPS PROJECT
+=================================
+
+External API
+    ↓
+ingest_data.py
+    ↓
+data/raw
+    ↓
+preprocess.py
+    ↓
+data/processed
+    ↓
+train.py
+    ↓
+MLflow Tracking
+    ↓
+Model Registry
+    ↓
+GitHub Actions
+    ↓
+Continuous Training
