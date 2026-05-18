@@ -128,28 +128,75 @@ Menuju ke:
 
 Perintah Penting:
 
-Cara cek semua versi
+Cara cek semua versi project/data:
 git log --oneline
 
-Inisialisasi:
+Keluar dari tampilan log:
+q
+
+Inisialisasi DVC:
 python -m dvc init
 
-Tracking dataset:
-dvc add data/raw
+Tracking dataset/folder:
+python -m dvc add data/raw
 
-Cek perubahan:
-dvc diff
+Cek perubahan dataset:
+python -m dvc diff
 
-Cek status:
-dvc status
+Cek status DVC:
+python -m dvc status
+
+Cek versi DVC:
+python -m dvc --version
+
+Melihat isi tracking DVC:
+cat data/raw.dvc
+
+Mengembalikan data dari cache:
+python -m dvc checkout
+
+Mengambil data dari remote:
+python -m dvc pull
+
+Melihat cache DVC:
+ls .dvc/cache
+
+Melihat isi folder:
+ls
+atau
+ls -a
 
 Tanda DVC Aktif:
 .dvc/
+.dvcignore
 
-Tanda Dataset Ditrack:
+Tanda Dataset Sedang Ditrack:
 raw.dvc
 atau
 dataset.csv.dvc
+
+Tanda Dataset Berubah:
+md5 pada file .dvc berubah
+
+Alur DVC:
+Data berubah
+→ dvc add
+→ md5 berubah
+→ git commit
+→ tercipta versi baru dataset
+
+Penanda Versi Dataset:
+git commit = versi data/project
+md5 = identitas isi dataset
+
+Jika "dvc: command not found":
+export PATH=$PATH:/home/codespace/.local/bin
+
+Jika folder raw hilang:
+python -m dvc checkout
+
+Jika ingin melihat isi tracking:
+cat data/raw.dvc
 
 Alur:
 Data baru masuk

@@ -3,6 +3,6 @@ creation_timestamp: 1778407948983
 deployment_job_id: null
 deployment_job_state: null
 description: null
-last_updated_timestamp: 1778424413639
+last_updated_timestamp: 1779070686871
 name: AirQualityRandomForestModel
 workspace: default
