@@ -14,8 +14,8 @@ LOCATIONS = {
     "Medan": {"lat": 3.5952, "lon": 98.6722},               # Kota industri
 }
 
-# Hitung timestamp untuk start (1 Januari 2025) dan end (sekarang)
-start_date = datetime(2025, 1, 1)
+# Hitung timestamp untuk start (1 Januari 2026) dan end (sekarang)
+start_date = datetime(2026, 1, 1)
 end_date = datetime.now()
 
 if start_date >= end_date:
