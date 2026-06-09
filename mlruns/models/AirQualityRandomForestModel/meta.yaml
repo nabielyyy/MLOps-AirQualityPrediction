@@ -1,8 +1,6 @@
-aliases: {}
+aliases:
+  Production: '2'
 creation_timestamp: 1778407948983
-deployment_job_id: null
-deployment_job_state: null
 description: null
-last_updated_timestamp: 1780380112563
+last_updated_timestamp: 1781023569843
 name: AirQualityRandomForestModel
-workspace: default

@@ -8,9 +8,19 @@ import yaml
 def load_model_registry():
     """Memuat model registry dari file YAML."""
     registry_path = os.path.join(os.path.dirname(__file__), '..', 'model_registry.yaml')
-    with open(registry_path, 'r') as file:
-        registry = yaml.safe_load(file)
-    return registry
+    try:
+        with open(registry_path, 'r') as file:
+            registry = yaml.safe_load(file)
+        return registry
+    except FileNotFoundError:
+        model_name = os.getenv("MODEL_NAME") or os.getenv("MLFLOW_MODEL_NAME") or "AirQualityRandomForestModel"
+        return {
+            "model_registry": {
+                "name": model_name,
+                "production_version": "1",
+                "staging_version": "1",
+            }
+        }
 
 
 def _load_model_from_local_artifact(model_name, version):

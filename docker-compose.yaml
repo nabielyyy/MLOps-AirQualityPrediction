@@ -33,7 +33,7 @@ services:
       - -c
       - |
         pip install --no-cache-dir mlflow==2.16.2 scikit-learn pandas
-        mlflow models serve -m models:/AirQualityRandomForestModel/${MODEL_VERSION:-1} --host 0.0.0.0 --port 5001 --no-conda --env-manager local
+        mlflow models serve -m models:/AirQualityRandomForestModel/${MLFLOW_MODEL_ALIAS:-Production} --host 0.0.0.0 --port 5001 --no-conda --env-manager local
     environment:
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       MLFLOW_ALLOW_FILE_STORE: "true"
