@@ -3,6 +3,7 @@ import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+import loadmodel
 from loadmodel import load_model_registry, load_model, load_production_model, load_staging_model
 
 def test_load_model_registry():
@@ -50,3 +51,22 @@ def test_load_model_specific_version():
         assert hasattr(model, 'predict')
     except Exception as e:
         pytest.skip(f"Model versi 1 tidak bisa di-load: {e}")
+
+
+def test_load_model_uses_environment_model_name(monkeypatch):
+    """Test loader model memanfaatkan MODEL_NAME dan alias dari environment."""
+    calls = {}
+
+    def fake_load_model(uri):
+        calls['uri'] = uri
+        return object()
+
+    monkeypatch.setenv('MODEL_NAME', 'OverrideModel')
+    monkeypatch.setenv('MLFLOW_MODEL_ALIAS', 'Staging')
+    monkeypatch.setenv('MLFLOW_TRACKING_URI', 'http://mlflow-server:5000')
+    monkeypatch.setattr(loadmodel.mlflow, 'set_tracking_uri', lambda uri: None)
+    monkeypatch.setattr(loadmodel.mlflow.sklearn, 'load_model', fake_load_model)
+
+    load_model()
+
+    assert calls['uri'] == 'models:/OverrideModel/Staging'

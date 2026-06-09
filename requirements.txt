@@ -2,6 +2,8 @@ pandas
 numpy
 requests
 scikit-learn
-mlflow
+mlflow==2.16.2
 dvc
 pytest
+fastapi
+uvicorn[standard]
