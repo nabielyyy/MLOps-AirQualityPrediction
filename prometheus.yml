@@ -8,7 +8,7 @@ scrape_configs:
     metrics_path: '/metrics'
     dns_sd_configs:
       - names:
-          - 'api' # GANTI 'api' dengan nama service FastAPI di docker-compose Anda
+          - 'api' 
         type: 'A'
         port: 8000
 

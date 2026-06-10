@@ -40,7 +40,6 @@ Instrumentator().instrument(app).expose(
     app, 
     endpoint="/metrics", 
     include_in_schema=True,
-    should_ignore_flushing=True
 )
 
 # 2. Custom Metric untuk mendeteksi Data Drift (Distribusi Kelas Prediksi)
