@@ -2,63 +2,64 @@ import os
 
 import mlflow
 import mlflow.sklearn
-import yaml
+from mlflow import MlflowClient
 
 
-def load_model_registry():
-    """Memuat model registry dari file YAML."""
-    registry_path = os.path.join(os.path.dirname(__file__), '..', 'model_registry.yaml')
-    try:
-        with open(registry_path, 'r') as file:
-            registry = yaml.safe_load(file)
-        return registry
-    except FileNotFoundError:
-        model_name = os.getenv("MODEL_NAME") or os.getenv("MLFLOW_MODEL_NAME") or "AirQualityRandomForestModel"
-        return {
-            "model_registry": {
-                "name": model_name,
-                "production_version": "1",
-                "staging_version": "1",
-            }
-        }
+def get_latest_model_version(model_name: str) -> str:
+    """Mengambil nomor versi terbaru dari model di MLflow Model Registry."""
+    client = MlflowClient()
+    model_versions = client.search_model_versions(f"name='{model_name}'")
+    if not model_versions:
+        raise ValueError(f"Tidak ada versi ditemukan untuk model '{model_name}' di registry.")
+    
+    latest_version = max(model_versions, key=lambda v: int(v.version))
+    return latest_version.version
 
 
-def _load_model_from_local_artifact(model_name, version):
-    """Memuat model langsung dari artefak lokal di folder mlruns jika registry URI tidak tersedia."""
+def _load_latest_local_artifact(model_name: str):
+    """Fallback: memuat versi terbaru yang tersedia secara lokal di folder mlruns."""
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    registry_meta_path = os.path.join(base_dir, 'mlruns', 'models', model_name, f'version-{version}', 'meta.yaml')
-    if not os.path.exists(registry_meta_path):
-        raise FileNotFoundError(f"Metadata model tidak ditemukan di {registry_meta_path}")
-
-    with open(registry_meta_path, 'r') as file:
+    model_dir = os.path.join(base_dir, 'mlruns', 'models', model_name)
+    
+    if not os.path.exists(model_dir):
+        raise FileNotFoundError(f"Folder model tidak ditemukan di {model_dir}")
+    
+    # Cari semua folder version-* dan ambil yang paling besar
+    versions = []
+    for entry in os.listdir(model_dir):
+        if entry.startswith("version-"):
+            try:
+                versions.append(int(entry.split("-", 1)[1]))
+            except ValueError:
+                continue
+    
+    if not versions:
+        raise FileNotFoundError(f"Tidak ada versi lokal ditemukan untuk model '{model_name}'")
+    
+    latest_version = max(versions)
+    meta_path = os.path.join(model_dir, f"version-{latest_version}", "meta.yaml")
+    
+    import yaml
+    with open(meta_path, 'r') as file:
         metadata = yaml.safe_load(file)
-
-    storage_location = metadata.get('storage_location')
-    if not storage_location:
-        raise FileNotFoundError('storage_location tidak ditemukan pada metadata model')
-
-    artifact_candidates = []
-    raw_path = storage_location.replace('file://', '')
-    artifact_candidates.append(raw_path)
-
-    if '/mlruns/' in raw_path:
-        suffix = raw_path.split('/mlruns/', 1)[1]
+    
+    storage_location = metadata.get('storage_location', '').replace('file://', '')
+    
+    artifact_candidates = [storage_location]
+    if '/mlruns/' in storage_location:
+        suffix = storage_location.split('/mlruns/', 1)[1]
         artifact_candidates.extend([f"/app/mlruns/{suffix}", f"/mlruns/{suffix}"])
-
-    if raw_path.startswith('/workspaces/') or raw_path.startswith('/home/'):
-        artifact_candidates.append(raw_path.replace('/workspaces/MLOps-AirQualityPrediction', '/app'))
-
+    
     for candidate in artifact_candidates:
         if os.path.exists(candidate):
             return mlflow.sklearn.load_model(candidate)
-
-    return mlflow.sklearn.load_model(raw_path)
+    
+    return mlflow.sklearn.load_model(storage_location)
 
 
 def load_model(version=None):
     """Memuat model dari MLflow Model Registry atau fallback ke artefak lokal."""
-    registry = load_model_registry()
-    model_name = os.getenv("MODEL_NAME") or os.getenv("MLFLOW_MODEL_NAME") or registry['model_registry']['name']
+    model_name = os.getenv("MODEL_NAME") or os.getenv("MLFLOW_MODEL_NAME") or "AirQualityRandomForestModel"
 
     os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
 
@@ -90,27 +91,29 @@ def load_model(version=None):
                 pass
 
             if version is None:
-                alias = os.getenv("MLFLOW_MODEL_ALIAS", "Production")
                 try:
-                    return mlflow.sklearn.load_model(f"models:/{model_name}/{alias}")
-                except Exception:
-                    production_version = registry['model_registry']['production_version']
-                    return _load_model_from_local_artifact(model_name, production_version)
+                    latest_version = get_latest_model_version(model_name)
+                    return mlflow.sklearn.load_model(f"models:/{model_name}/{latest_version}")
+                except Exception as reg_exc:
+                    last_error = reg_exc
+                    # Fallback: cari versi terbaru secara lokal
+                    return _load_latest_local_artifact(model_name)
 
             return mlflow.sklearn.load_model(f"models:/{model_name}/{version}")
-        except Exception as exc:  # pragma: no cover - exercised during startup fallback
+        except Exception as exc:
             last_error = exc
 
     raise RuntimeError(f"Model tidak bisa dimuat dari MLflow: {last_error}")
 
 
 def load_production_model():
-    """Memuat model versi produksi."""
+    """Memuat model versi terbaru (produksi)."""
     return load_model()
 
 
 def load_staging_model():
-    """Memuat model versi staging."""
-    registry = load_model_registry()
-    version = registry['model_registry']['staging_version']
-    return load_model(version)
+    """Memuat model versi staging — gunakan env var MLFLOW_STAGING_VERSION."""
+    staging_version = os.getenv("MLFLOW_STAGING_VERSION")
+    if not staging_version:
+        raise ValueError("MLFLOW_STAGING_VERSION environment variable harus di-set untuk load_staging_model()")
+    return load_model(staging_version)

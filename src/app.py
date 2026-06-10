@@ -8,7 +8,8 @@ import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from src.loadmodel import load_model
+# Import fungsi tambahan untuk mengambil versi terbaru
+from src.loadmodel import load_model, get_latest_model_version
 
 
 # Model input format yang disesuaikan dengan fitur yang dipakai saat training.
@@ -68,6 +69,8 @@ def load_model_on_startup() -> None:
 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow-server:5000")
     mlflow.set_tracking_uri(tracking_uri)
+    
+    model_name = os.getenv("MODEL_NAME") or os.getenv("MLFLOW_MODEL_NAME", "AirQualityRandomForestModel")
 
     # Memberi jeda singkat agar mlflow-server sudah siap sebelum API mencoba memuat model.
     last_error = None
@@ -75,8 +78,15 @@ def load_model_on_startup() -> None:
         try:
             model = load_model()
             app.state.model = model
-            app.state.model_name = os.getenv("MODEL_NAME") or os.getenv("MLFLOW_MODEL_NAME", "AirQualityRandomForestModel")
-            app.state.model_version = os.getenv("MLFLOW_MODEL_ALIAS", "Production")
+            app.state.model_name = model_name
+            
+            # Ambil versi terbaru yang sebenarnya dari registry untuk dilaporkan di state
+            try:
+                app.state.model_version = get_latest_model_version(model_name)
+            except Exception:
+                # Fallback jika query ke registry gagal
+                app.state.model_version = os.getenv("MLFLOW_MODEL_ALIAS", "Production")
+                
             app.state.model_loaded = True
             app.state.use_mlflow_server = os.getenv("USE_MLFLOW_MODEL_SERVER", "true").lower() == "true"
             return

@@ -1,87 +1,63 @@
 services:
   # MLflow server untuk menyimpan metadata eksperimen, registri model, dan artifact.
   mlflow-server:
-    image: python:3.11-slim
+    # Build the image using the Dockerfile instead of using a raw python image
+    build:
+      context: .
+      dockerfile: docker/mlflow/Dockerfile # Change to Dockerfile.mlflow if you named it differently
     container_name: mlflow-server
-    working_dir: /app
-    command: >
-      sh -c "mkdir -p /workspaces/MLOps-AirQualityPrediction/mlruns &&
-      pip install --no-cache-dir mlflow==2.16.2 &&
-      mlflow server --backend-store-uri sqlite:////workspaces/MLOps-AirQualityPrediction/mlruns/mlflow.db --default-artifact-root /workspaces/MLOps-AirQualityPrediction/mlruns --host 0.0.0.0 --port 5000 --gunicorn-opts \"--forwarded-allow-ips='*'\""
+    
+    # Ports and networks remain the same
     expose:
       - "5000"
     ports:
       - "5000:5000"
+      
+    # Volume mapping remains the same
     volumes:
       - .:/workspaces/MLOps-AirQualityPrediction
+      
     networks:
       - mlops-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3).read()"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
 
-  # MLflow model serving yang mengekpos model registry ke endpoint REST untuk inference.
-  mlflow-model-serving:
-    image: python:3.11-slim
-    container_name: mlflow-model-serving
-    working_dir: /app
-    command:
-      - sh
-      - -c
-      - |
-        pip install --no-cache-dir mlflow==2.16.2 scikit-learn pandas
-        mlflow models serve -m models:/AirQualityRandomForestModel/${MLFLOW_MODEL_ALIAS:-Production} --host 0.0.0.0 --port 5001 --no-conda --env-manager local
-    environment:
-      MLFLOW_TRACKING_URI: http://mlflow-server:5000
-      MLFLOW_ALLOW_FILE_STORE: "true"
-      MODEL_NAME: AirQualityRandomForestModel
-      MLFLOW_MODEL_ALIAS: Production
-      MODEL_VERSION: "${MODEL_VERSION:-1}"
-    expose:
-      - "5001"
-    ports:
-      - "5001:5001"
-    volumes:
-      - .:/workspaces/MLOps-AirQualityPrediction
-    depends_on:
-      mlflow-server:
-        condition: service_healthy
-    networks:
-      - mlops-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/health', timeout=3).read()"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
-  # FastAPI inference service yang dapat diskalakan dengan Compose.
+  # FastAPI inference service yang direplikasi 3 kali.
   api-service:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/inference/Dockerfile
     depends_on:
       mlflow-server:
         condition: service_healthy
-      mlflow-model-serving:
-        condition: service_healthy
-    ports:
-      - "8000-8002:8000"
+    expose:
+      - "8000" # Hanya expose internal, tidak lagi mapping ke host port
     environment:
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       MLFLOW_MODEL_ALIAS: Production
       MLFLOW_ALLOW_FILE_STORE: "true"
       MODEL_NAME: AirQualityRandomForestModel
       MODEL_VERSION: "${MODEL_VERSION:-1}"
-      MODEL_SERVER_URL: http://mlflow-model-serving:5001
-      USE_MLFLOW_MODEL_SERVER: "true"
+      # Penyesuaian environment: MODEL_SERVER_URL dihapus dan USE_MLFLOW_MODEL_SERVER 
+      # diubah menjadi false karena service mlflow-model-serving sudah dihapus.
+      USE_MLFLOW_MODEL_SERVER: "false"
       PYTHONPATH: /app
     volumes:
       - ./mlruns:/app/mlruns
       - ./model_registry.yaml:/app/model_registry.yaml
+    networks:
+      - mlops-network
+    deploy:
+      replicas: 3 # Menjalankan 3 instance dari api-service
+
+  # Nginx Load Balancer untuk mendistribusikan traffic ke 3 replica api-service.
+  nginx-lb:
+    image: nginx:alpine
+    container_name: nginx-lb
+    ports:
+      - "80:80" # Akses API melalui port 80 di host
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro # Mount konfigurasi nginx
+    depends_on:
+      - api-service
     networks:
       - mlops-network
 
