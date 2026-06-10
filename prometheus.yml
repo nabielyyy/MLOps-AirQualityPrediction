@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # 1. Scraping metrik dari FastAPI (Mendukung multiple replicas via DNS)
+  - job_name: 'fastapi-airquality'
+    metrics_path: '/metrics'
+    dns_sd_configs:
+      - names:
+          - 'api' # GANTI 'api' dengan nama service FastAPI di docker-compose Anda
+        type: 'A'
+        port: 8000
+
+  # 2. Scraping metrik CPU/RAM Container menggunakan cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']

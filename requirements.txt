@@ -7,3 +7,5 @@ dvc
 pytest
 fastapi
 uvicorn[standard]
+prometheus-fastapi-instrumentator
+prometheus-client

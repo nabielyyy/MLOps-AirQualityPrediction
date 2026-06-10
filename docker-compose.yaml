@@ -1,22 +1,16 @@
 services:
   # MLflow server untuk menyimpan metadata eksperimen, registri model, dan artifact.
   mlflow-server:
-    # Build the image using the Dockerfile instead of using a raw python image
     build:
       context: .
-      dockerfile: docker/mlflow/Dockerfile # Change to Dockerfile.mlflow if you named it differently
+      dockerfile: docker/mlflow/Dockerfile
     container_name: mlflow-server
-    
-    # Ports and networks remain the same
     expose:
       - "5000"
     ports:
       - "5000:5000"
-      
-    # Volume mapping remains the same
     volumes:
       - .:/workspaces/MLOps-AirQualityPrediction
-      
     networks:
       - mlops-network
 
@@ -29,15 +23,13 @@ services:
       mlflow-server:
         condition: service_healthy
     expose:
-      - "8000" # Hanya expose internal, tidak lagi mapping ke host port
+      - "8000" 
     environment:
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
       MLFLOW_MODEL_ALIAS: Production
       MLFLOW_ALLOW_FILE_STORE: "true"
       MODEL_NAME: AirQualityRandomForestModel
       MODEL_VERSION: "${MODEL_VERSION:-1}"
-      # Penyesuaian environment: MODEL_SERVER_URL dihapus dan USE_MLFLOW_MODEL_SERVER 
-      # diubah menjadi false karena service mlflow-model-serving sudah dihapus.
       USE_MLFLOW_MODEL_SERVER: "false"
       PYTHONPATH: /app
     volumes:
@@ -53,15 +45,75 @@ services:
     image: nginx:alpine
     container_name: nginx-lb
     ports:
-      - "80:80" # Akses API melalui port 80 di host
+      - "80:80" 
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro # Mount konfigurasi nginx
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro 
     depends_on:
       - api-service
     networks:
       - mlops-network
 
+  # === LAYANAN MONITORING ===
+
+  # Prometheus untuk mengumpulkan dan menyimpan metrik
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus  # Volume persisten untuk data metrik
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api-service
+      - cadvisor
+    networks:
+      - mlops-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d' # Simpan data metrik selama 30 hari
+
+  # Grafana untuk visualisasi dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana  # Volume persisten untuk dashboard & konfigurasi
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    networks:
+      - mlops-network
+
+  # cAdvisor untuk memantau penggunaan resource container (CPU/RAM)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - mlops-network
+    privileged: true # Diperlukan agar cAdvisor bisa membaca metrik sistem secara penuh
+
 networks:
-  # Custom bridge network agar API dan MLflow bisa saling terhubung.
   mlops-network:
     driver: bridge
+
+# === DEFINISI VOLUME PERSISTEN ===
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

@@ -7,6 +7,8 @@ import pandas as pd
 import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import Counter
 
 # Import fungsi tambahan untuk mengambil versi terbaru
 from src.loadmodel import load_model, get_latest_model_version
@@ -31,6 +33,22 @@ class PredictionResponse(BaseModel):
 
 # FastAPI app utama untuk inference service.
 app = FastAPI(title="Air Quality Prediction API", version="1.0.0")
+
+# === INTEGRASI PROMETHEUS ===
+# 1. Inisialisasi Instrumentator untuk mengekspos metrik HTTP bawaan (latency, throughput, dll)
+Instrumentator().instrument(app).expose(
+    app, 
+    endpoint="/metrics", 
+    include_in_schema=True,
+    should_ignore_flushing=True
+)
+
+# 2. Custom Metric untuk mendeteksi Data Drift (Distribusi Kelas Prediksi)
+PREDICTION_COUNTER = Counter(
+    'model_predictions_total', 
+    'Total number of predictions grouped by class', 
+    ['prediction_class']
+)
 
 
 def _build_mlflow_payload(payload_dict: dict) -> dict:
@@ -124,26 +142,29 @@ def predict(payload: AirQualityInput) -> PredictionResponse:
         raise HTTPException(status_code=503, detail="Model belum siap")
 
     payload_dict = payload.dict() if hasattr(payload, "dict") else payload.model_dump()
+    
+    prediction = None
+    message = ""
 
     if getattr(app.state, "use_mlflow_server", False):
         try:
             prediction = _predict_via_mlflow_server(payload_dict)
-            return PredictionResponse(
-                prediction=str(prediction),
-                model_name=app.state.model_name,
-                model_version=app.state.model_version,
-                message="Prediksi berhasil dibuat melalui MLflow Model Serving",
-            )
+            message = "Prediksi berhasil dibuat melalui MLflow Model Serving"
         except Exception as exc:  # pragma: no cover - startup path
             raise HTTPException(status_code=502, detail=f"MLflow model server tidak tersedia: {exc}") from exc
+    else:
+        feature_order = ["pm2_5", "pm10", "co", "no2", "o3", "so2"]
+        feature_frame = pd.DataFrame([payload_dict], columns=feature_order)
+        prediction = app.state.model.predict(feature_frame)[0]
+        message = "Prediksi berhasil dibuat menggunakan model lokal"
 
-    feature_order = ["pm2_5", "pm10", "co", "no2", "o3", "so2"]
-    feature_frame = pd.DataFrame([payload_dict], columns=feature_order)
-    prediction = app.state.model.predict(feature_frame)[0]
+    # === PENCATATAN METRIK PROMETHEUS ===
+    # Catat setiap prediksi yang berhasil ke custom counter untuk deteksi Data Drift
+    PREDICTION_COUNTER.labels(prediction_class=str(prediction)).inc()
 
     return PredictionResponse(
         prediction=str(prediction),
         model_name=app.state.model_name,
         model_version=app.state.model_version,
-        message="Prediksi berhasil dibuat menggunakan model lokal",
+        message=message,
     )
